@@ -23,13 +23,44 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(
     // Time segmentation process
     auto startTime = std::chrono::steady_clock::now();
 
-    // TODO:: Fill in the function to do voxel grid point reduction and region based filtering
+    // TODO:: voxel grid point reduction
+    typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
+    pcl::VoxelGrid<PointT> vg;  // voxel 당 point 하나씩만 남긴다.
+    vg.setInputCloud(cloud);
+    vg.setLeafSize(filterRes, filterRes, filterRes);
+    vg.filter(*cloudFiltered);
+
+    // TODO:: Region Based Filtering
+    typename pcl::PointCloud<PointT>::Ptr cloudRegion (new pcl::PointCloud<PointT>);
+    pcl::CropBox<PointT> region(true);
+    region.setMin(minPoint);
+    region.setMax(maxPoint);
+    region.setInputCloud(cloudFiltered);
+    region.filter(*cloudRegion);
+
+    // TODO:: Remove ego car roof points
+    std::vector<int> indices;
+    pcl::CropBox<PointT> roof(true);
+    roof.setMin(Eigen::Vector4f (-1.5, -1.7, -1, 1));
+    roof.setMax(Eigen::Vector4f (2.6, 1.7, -0.4, 1));
+    roof.setInputCloud(cloudRegion);
+    roof.filter(indices);
+
+    pcl::PointIndices::Ptr inliers {new pcl::PointIndices};
+    for(int point : indices)
+        inliers->indices.push_back(point);
+
+    pcl::ExtractIndices<PointT> extract;
+    extract.setInputCloud(cloudRegion);
+    extract.setIndices(inliers);
+    extract.setNegative(true);
+    extract.filter(*cloudRegion);
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    return cloud;
+    return cloudRegion;
 }
 
 template <typename PointT>
@@ -37,11 +68,23 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
 ProcessPointClouds<PointT>::SeparateClouds(
     pcl::PointIndices::Ptr inliers,
     typename pcl::PointCloud<PointT>::Ptr cloud) {
-    // TODO: Create two new point clouds, one cloud with obstacles and other with segmented plane
 
-    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr>
-        segResult(cloud, cloud);
-    return segResult;
+    // TODO: Create two new point clouds, one cloud with obstacles and other with segmented plane
+    // ExtractIndices를 사용하지 않고, 단순히 loop 돌면서 push_back 하는 방법도 있다.
+    typename pcl::PointCloud<PointT>::Ptr obstCloud{new pcl::PointCloud<PointT>};
+    typename pcl::PointCloud<PointT>::Ptr planeCloud{new pcl::PointCloud<PointT>};
+    pcl::ExtractIndices<PointT> extract;
+
+    extract.setInputCloud(cloud);
+    extract.setIndices(inliers);
+
+    extract.setNegative(true);
+    extract.filter(*obstCloud);
+
+    extract.setNegative(false);
+    extract.filter(*planeCloud);
+
+    return {obstCloud, planeCloud};
 }
 
 template <typename PointT>
@@ -50,18 +93,33 @@ ProcessPointClouds<PointT>::SegmentPlane(
     typename pcl::PointCloud<PointT>::Ptr cloud,
     int maxIterations,
     float distanceThreshold) {
+
     // Time segmentation process
     auto startTime = std::chrono::steady_clock::now();
-    pcl::PointIndices::Ptr inliers;
+
     // TODO:: Fill in this function to find inliers for the cloud.
+    pcl::SACSegmentation<PointT> seg;
+    pcl::PointIndices::Ptr inliers{new pcl::PointIndices()};
+    pcl::ModelCoefficients::Ptr coefficients{new pcl::ModelCoefficients()};
+
+    seg.setOptimizeCoefficients(true);
+    seg.setModelType(pcl::SACMODEL_PLANE);
+    seg.setMethodType(pcl::SAC_RANSAC);
+    seg.setMaxIterations(maxIterations);
+    seg.setDistanceThreshold(distanceThreshold);
+
+    // Segment the largest planer component from the input cloud
+    seg.setInputCloud(cloud);
+    seg.segment(*inliers, *coefficients);
+    if (inliers->indices.size() == 0) {
+        std::cout << "Could not estimate a planar model for the given dataset.\n";
+    }
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "plane segmentation took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr>
-        segResult = SeparateClouds(inliers, cloud);
-    return segResult;
+    return SeparateClouds(inliers, cloud);
 }
 
 template <typename PointT>
@@ -77,6 +135,28 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
     // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
+    // Creating the KdTree object for the search method of the extraction
+    typename pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+    tree->setInputCloud(cloud);
+
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<PointT> ec;
+    ec.setClusterTolerance(clusterTolerance);
+    ec.setMinClusterSize(minSize);
+    ec.setMaxClusterSize(maxSize);
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(cloud);
+    ec.extract(cluster_indices);
+
+    for (const auto &indices : cluster_indices) {
+        typename pcl::PointCloud<PointT>::Ptr thisCluster{new pcl::PointCloud<PointT>};
+        pcl::ExtractIndices<PointT> extract;
+        extract.setInputCloud(cloud);
+        extract.setIndices(pcl::make_shared<const pcl::PointIndices>(indices));
+        extract.filter(*thisCluster);
+
+        clusters.push_back(thisCluster);
+    }
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);

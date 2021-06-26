@@ -81,12 +81,41 @@ void render2DTree(
     }
 }
 
+void clusterHelper(
+    const std::vector<std::vector<float>> &points,
+    KdTree *tree,
+    float distanceTol,
+    int idx,
+    std::vector<bool> &processed,
+    std::vector<int> &cluster) {
+
+    processed.at(idx) = true;
+    cluster.push_back(idx);
+    std::vector<int> nearby = tree->search(points.at(idx), distanceTol);
+    for (int each : nearby) {
+        if (!processed.at(each)) {
+            clusterHelper(points, tree, distanceTol, each, processed, cluster);
+        }
+    }
+}
+
 std::vector<std::vector<int>>
 euclideanCluster(const std::vector<std::vector<float>> &points, KdTree *tree, float distanceTol) {
 
     // TODO: Fill out this function to return list of indices for each cluster
 
     std::vector<std::vector<int>> clusters;
+    std::vector<bool> processed(points.size(), false);
+
+    for (int i = 0; i < points.size(); ++i) {
+        if (processed.at(i)) {
+            continue;
+        }
+
+        std::vector<int> new_cluster;
+        clusterHelper(points, tree, distanceTol, i, processed, new_cluster);
+        clusters.push_back(new_cluster);
+    }
 
     return clusters;
 }

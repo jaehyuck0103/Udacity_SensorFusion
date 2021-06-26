@@ -28,7 +28,7 @@ struct Vect3 {
     }
 };
 
-enum CameraAngle { XY, TopDown, Side, FPS };
+enum class CameraAngle { XY, TopDown, Side, FPS };
 
 struct Car {
 
