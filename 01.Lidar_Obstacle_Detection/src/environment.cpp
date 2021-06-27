@@ -90,13 +90,16 @@ void cityBlock(
     // renderPointCloud(viewer, filteredCloud, "filteredCloud");
 
     // Segment plane
-    auto [obstCloud, planeCloud] = pointProcessorI.SegmentPlane(filteredCloud, 100, 0.2);
+    // auto [obstCloud, planeCloud] = pointProcessorI.SegmentPlane(filteredCloud, 100, 0.2);
+    auto [obstCloud, planeCloud] = pointProcessorI.SegmentPlaneWithoutPCL(filteredCloud, 200, 0.2);
     renderPointCloud(viewer, obstCloud, "obstCloud", Color(0.2, 0.2, 0.2));
     renderPointCloud(viewer, planeCloud, "planeCloud", Color(0, 1, 0));
 
     // Clustering
+    // std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters =
+    //    pointProcessorI.Clustering(obstCloud, 0.4, 20, 1000);
     std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters =
-        pointProcessorI.Clustering(obstCloud, 0.4, 20, 1000);
+        pointProcessorI.ClusteringWithoutPCL(obstCloud, 0.4, 10, 1000);
 
     std::vector<Color> colors = {Color(1, 0, 0), Color(1, 1, 0), Color(0, 0, 1)};
 
@@ -144,7 +147,7 @@ void initCamera(CameraAngle setAngle, pcl::visualization::PCLVisualizer::Ptr &vi
         viewer->addCoordinateSystem(1.0);
 }
 
-int main(int argc, char **argv) {
+int main() {
     std::cout << "starting enviroment" << std::endl;
 
     pcl::visualization::PCLVisualizer::Ptr viewer(
