@@ -25,6 +25,17 @@ void clusterHelper(
     }
 }
 
+template <typename PointT>
+std::tuple<float, float, float, float>
+getPlaneCoeff(const PointT &pt1, const PointT &pt2, const PointT &pt3) {
+    float A = (pt2.y - pt1.y) * (pt3.z - pt1.z) - (pt2.z - pt1.z) * (pt3.y - pt1.y);
+    float B = (pt2.z - pt1.z) * (pt3.x - pt1.x) - (pt2.x - pt1.x) * (pt3.z - pt1.z);
+    float C = (pt2.x - pt1.x) * (pt3.y - pt1.y) - (pt2.y - pt1.y) * (pt3.x - pt1.x);
+    float D = -(A * pt1.x + B * pt1.y + C * pt1.z);
+
+    return {A, B, C, D};
+}
+
 // constructor:
 template <typename PointT> ProcessPointClouds<PointT>::ProcessPointClouds() {}
 
@@ -157,30 +168,21 @@ ProcessPointClouds<PointT>::SegmentPlaneWithoutPCL(
 
     // Ransac 3D
     std::unordered_set<int> inliersResult;
-    while (maxIterations--) {
+    for (int iter = 0; iter < maxIterations; ++iter) {
         // Randomly sample subset and fit plane (Ax + By + Cz + D = 0)
         std::unordered_set<int> inliers;
         while (inliers.size() < 3) {
             inliers.insert(rand() % cloud->size());
         }
         std::vector point_idxs(inliers.begin(), inliers.end());
-        float x1 = cloud->at(point_idxs.at(0)).x;
-        float y1 = cloud->at(point_idxs.at(0)).y;
-        float z1 = cloud->at(point_idxs.at(0)).z;
-        float x2 = cloud->at(point_idxs.at(1)).x;
-        float y2 = cloud->at(point_idxs.at(1)).y;
-        float z2 = cloud->at(point_idxs.at(1)).z;
-        float x3 = cloud->at(point_idxs.at(2)).x;
-        float y3 = cloud->at(point_idxs.at(2)).y;
-        float z3 = cloud->at(point_idxs.at(2)).z;
-        float A = (y2 - y1) * (z3 - z1) - (z2 - z1) * (y3 - y1);
-        float B = (z2 - z1) * (x3 - x1) - (x2 - x1) * (z3 - z1);
-        float C = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1);
-        float D = -(A * x1 + B * y1 + C * z1);
+        auto [A, B, C, D] = getPlaneCoeff(
+            cloud->at(point_idxs.at(0)),
+            cloud->at(point_idxs.at(1)),
+            cloud->at(point_idxs.at(2)));
 
         // Measure distance between every point and fitted line
         // If distance is smaller than threshold count it as inlier
-        for (int idx = 0; idx < cloud->size(); ++idx) {
+        for (size_t idx = 0; idx < cloud->size(); ++idx) {
             const auto &pt = cloud->at(idx);
             float distance = abs(A * pt.x + B * pt.y + C * pt.z + D) / sqrt(A * A + B * B + C * C);
             if (distance <= distanceThreshold) {
@@ -263,20 +265,21 @@ ProcessPointClouds<PointT>::ClusteringWithoutPCL(
 
     // Construct KdTree
     KdTree tree;
-    for (int i = 0; i < cloud->size(); i++)
+    for (size_t i = 0; i < cloud->size(); i++)
         tree.insert({cloud->points[i].x, cloud->points[i].y, cloud->points[i].z}, i);
 
     // Euclidean Clusterirng
     std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
     std::vector<bool> processed(cloud->size(), false);
-    for (int i = 0; i < cloud->size(); ++i) {
+    for (size_t i = 0; i < cloud->size(); ++i) {
         if (processed.at(i)) {
             continue;
         }
 
         std::vector<int> new_cluster_indices;
         clusterHelper<PointT>(cloud, tree, clusterTolerance, i, processed, new_cluster_indices);
-        if (new_cluster_indices.size() >= minSize && new_cluster_indices.size() <= maxSize) {
+        if (static_cast<int>(new_cluster_indices.size()) >= minSize &&
+            static_cast<int>(new_cluster_indices.size()) <= maxSize) {
             typename pcl::PointCloud<PointT>::Ptr thisCluster{new pcl::PointCloud<PointT>};
             for (int idx : new_cluster_indices) {
                 thisCluster->emplace_back(cloud->at(idx));

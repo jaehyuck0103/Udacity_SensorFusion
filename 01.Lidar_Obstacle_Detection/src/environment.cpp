@@ -85,13 +85,13 @@ void cityBlock(
 
     // Filtering
     pcl::PointCloud<pcl::PointXYZI>::Ptr filteredCloud;
-    filteredCloud =
-        pointProcessorI.FilterCloud(inputCloud, 0.2, {-50, -15, -10, 1}, {50, 15, 10, 1});
+    filteredCloud = pointProcessorI.FilterCloud(inputCloud, 0.15, {-20, -6, -5, 1}, {30, 7, 5, 1});
     // renderPointCloud(viewer, filteredCloud, "filteredCloud");
 
     // Segment plane
     // auto [obstCloud, planeCloud] = pointProcessorI.SegmentPlane(filteredCloud, 100, 0.2);
-    auto [obstCloud, planeCloud] = pointProcessorI.SegmentPlaneWithoutPCL(filteredCloud, 200, 0.2);
+    auto [obstCloud, planeCloud] =
+        pointProcessorI.SegmentPlaneWithoutPCL(filteredCloud, 200, 0.25);
     renderPointCloud(viewer, obstCloud, "obstCloud", Color(0.2, 0.2, 0.2));
     renderPointCloud(viewer, planeCloud, "planeCloud", Color(0, 1, 0));
 
@@ -99,7 +99,7 @@ void cityBlock(
     // std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters =
     //    pointProcessorI.Clustering(obstCloud, 0.4, 20, 1000);
     std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters =
-        pointProcessorI.ClusteringWithoutPCL(obstCloud, 0.4, 10, 1000);
+        pointProcessorI.ClusteringWithoutPCL(obstCloud, 0.42, 18, 1500);
 
     std::vector<Color> colors = {Color(1, 0, 0), Color(1, 1, 0), Color(0, 0, 1)};
 
