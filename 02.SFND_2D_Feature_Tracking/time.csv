@@ -1,0 +1,11 @@
+Average time for keypoint detection and descriptor extraction (ms)
+
+
+          ,     BRISK,     BRIEF,       ORB,     FREAK,     AKAZE,      SIFT
+ SHITOMASI,      6.82,      6.00,      7.75,     21.54,      -nan,     12.71
+    HARRIS,      5.42,      5.08,      6.94,     20.42,      -nan,     11.94
+      FAST,      1.56,      0.91,      2.51,     16.55,      -nan,      7.67
+     BRISK,     42.18,     41.03,     49.55,     57.47,      -nan,     51.88
+       ORB,      5.69,      5.29,     13.86,     20.57,      -nan,     17.54
+     AKAZE,     51.20,     51.97,     56.73,     65.86,     93.39,     60.74
+      SIFT,     59.86,     62.10,      -nan,     77.95,      -nan,    111.78

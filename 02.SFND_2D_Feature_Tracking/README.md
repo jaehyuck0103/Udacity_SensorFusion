@@ -13,28 +13,6 @@ The idea of the camera course is to build a collision detection system - that's 
 
 See the classroom instruction and code comments for more details on each of these parts. Once you are finished with this project, the keypoint matching part will be set up and you can proceed to the next lesson, where the focus is on integrating Lidar points and on object detection using deep-learning. 
 
-## Dependencies for Running Locally
-1. cmake >= 2.8
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-
-2. make >= 4.1 (Linux, Mac), 3.81 (Windows)
- * Linux: make is installed by default on most Linux distros
- * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
- * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-
-3. OpenCV >= 4.1
- * All OSes: refer to the [official instructions](https://docs.opencv.org/master/df/d65/tutorial_table_of_content_introduction.html)
- * This must be compiled from source using the `-D OPENCV_ENABLE_NONFREE=ON` cmake flag for testing the SIFT and SURF detectors. If using [homebrew](https://brew.sh/): `$> brew install --build-from-source opencv` will install required dependencies and compile opencv with the `opencv_contrib` module by default (no need to set `-DOPENCV_ENABLE_NONFREE=ON` manually). 
- * The OpenCV 4.1.0 source code can be found [here](https://github.com/opencv/opencv/tree/4.1.0)
-
-4. gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools](https://developer.apple.com/xcode/features/)
-  * Windows: recommend using either [MinGW-w64](http://mingw-w64.org/doku.php/start) or [Microsoft's VCPKG, a C++ package manager](https://docs.microsoft.com/en-us/cpp/build/install-vcpkg?view=msvc-160&tabs=windows). VCPKG maintains its own binary distributions of OpenCV and many other packages. To see what packages are available, type `vcpkg search` at the command prompt. For example, once you've _VCPKG_ installed, you can install _OpenCV 4.1_ with the command:
-```bash
-c:\vcpkg> vcpkg install opencv4[nonfree,contrib]:x64-windows
-```
-Then, add *C:\vcpkg\installed\x64-windows\bin* and *C:\vcpkg\installed\x64-windows\debug\bin* to your user's _PATH_ variable. Also, set the _CMake Toolchain File_ to *c:\vcpkg\scripts\buildsystems\vcpkg.cmake*.
 
 
 ## Basic Build Instructions
@@ -42,4 +20,57 @@ Then, add *C:\vcpkg\installed\x64-windows\bin* and *C:\vcpkg\installed\x64-windo
 1. Clone this repo.
 2. Make a build directory in the top level directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
-4. Run it: `./2D_feature_tracking`.
+4. Run specific mode with visualization: `./2D_feature_tracking [SHITOMASI, HARRIS, FAST, BRISK, ORB, AKAZE, SIFT] [BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT] [MAT_BF, MAT_FLANN] [SEL_NN, SEL_KNN] `
+5. Run benchmark mode without visualization (It makes .csv files): `./2D_feature_tracking `
+
+
+
+## Project Rubric
+
+#### MP.1 Data Buffer Optimization:  Implement a vector for dataBuffer objects whose size does not exceed a limit (e.g. 2 elements). This can be achieved by pushing in new elements on one end and removing elements on the other end.
+
+Before push a new element, pop the first element of `dataBuffer` if `dataBuffer.size() == dataBuffersize`. Shutdown program with error message if `dataBuffer.size() > dataBuffersize`, as it is impossible scenario.
+
+#### MP.2 Keypoint Detection: Implement detectors HARRIS, FAST, BRISK, ORB, AKAZE, and SIFT and make them selectable by setting a string accordingly.
+
+I make wrapper function `detKeypoints()` to remove the duplicate codes for time measure and visualization. `detKeypoints()` launches one of `detKeypointShiTomasi()`, `detKeypointsHarris()`, and `detKeypointsModern()` according to the argument. I follow the config of the template code for `detKeypointsShiTomasi`, and the config and NMS of the lecture code for `detKeypointHarris()`. For the `detKeypointModeren()`, I use default settings of OpenCV. If an invalid `detectorType` comes, `detKeypointsModern()` raises an error message and shutdown the program.
+
+#### MP.3 Keypoint Removal: Remove all keypoints outside of a pre-defined rectangle and only use the keypoints within the rectangle for further processing.
+
+I use `std::remove_if()` with lambda function which checks a keypoint is out of `vehicleRect`.
+
+#### MP.4 Keypoint Descriptors: Implement descriptors BRIEF, ORB, FREAK, AKAZE and SIFT and make them selectable by setting a string accordingly.
+
+`descKeypoints()` calculate a selected description. If an invalid `descriptorType` comes, `descKeypoints()` raises an error message and shutdown the program. I use default configs of OpenCV for the descriptor extractors.
+
+#### MP.5 Descriptor Matching: Implement FLANN matching as well as k-nearest neighbor selection. Both methods must be selectable using the respective strings in the main function.
+
+`matchDescriptors()` select a matcher by string. For the BFMatcher, a proper `normType` is selected by `descriptType`. For the FlannBasedMatcher, `descSource` and `descRef` are casted to `CV_32F` to avoid bug.
+
+#### MP.6 Descriptor Distance Ratio: Use the K-Nearest-Neighbor matching to implement the descriptor distance ratio test, which looks at the ratio of best vs. second-best match to decide whether to keep an associated pair of keypoints.
+
+`matchDescriptors()` select NN matching or KNN matching. When KNN matching, the matches whoes first-best distance is lower than 0.8 x second-best distance survive.
+
+#### MP.7 Performance Evaluation 1: Count the number of keypoints on the preceding vehicle for all 10 images and take note of the distribution of their neighborhood size. Do this for all the detectors you have implemented.
+
+Check `keypoints.csv`.
+
+#### MP.8 Performance Evaluation 2: Count the number of matched keypoints for all 10 images using all possible combinations of detectors and descriptors. In the matching step, the BF approach is used with the descriptor distance ratio set to 0.8.
+
+Check `matches.csv`.
+
+Some invalid combinations are filtered out at the start of `runSeq()` and marked as nan in the csv file.
+
+#### MP.9 Performance Evaluation 3: Log the time it takes for keypoint detection and descriptor extraction. The results must be entered into a spreadsheet and based on this data, the TOP3 detector / descriptor combinations must be recommended as the best choice for our purpose of detecting keypoints on vehicles.
+
+Check `time.csv`.
+
+
+
+##### Top3 Detector /Descriptor combinations
+
+1. `FAST` / `BRIEF`
+2. `FAST` / `ORB`
+3. `FAST` / `BRISK`
+
+The selected combinations show the fastest speed. They also make a resonable amount of matchings.
