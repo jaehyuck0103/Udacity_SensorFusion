@@ -106,15 +106,16 @@ int main(int argc, const char *argv[]) {
 
     // misc
     double sensorFrameRate = 10.0 / imgStepWidth; // frames per second for Lidar and camera
-    int dataBufferSize =
-        2; // no. of images which are held in memory (ring buffer) at the same time
-    std::vector<DataFrame>
-        dataBuffer;    // list of data frames which are held in memory at the same time
-    bool bVis = false; // visualize results
+    //// no. of images which are held in memory (ring buffer) at the same time
+    size_t dataBufferSize = 2;
+    //// list of data frames which are held in memory at the same time
+    std::vector<DataFrame> dataBuffer;
 
     /* MAIN LOOP OVER ALL IMAGES */
+    for (int imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex += imgStepWidth) {
 
-    for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex += imgStepWidth) {
+        bool bVis = true; // visualize results
+
         /* LOAD IMAGE INTO BUFFER */
 
         // assemble filenames for current index
@@ -125,6 +126,14 @@ int main(int argc, const char *argv[]) {
         // load image from file
         cv::Mat img = cv::imread(imgFullFilename);
 
+        // pop the first image from dataBuffer
+        if (dataBuffer.size() == dataBufferSize) {
+            dataBuffer.erase(dataBuffer.begin());
+        } else if (dataBuffer.size() > dataBufferSize) {
+            std::cout << "Impossible case: dataBuffer.size() > dataBufferSize\n";
+            std::abort();
+        }
+
         // push image into data frame buffer
         DataFrame frame;
         frame.cameraImg = img;
@@ -133,7 +142,6 @@ int main(int argc, const char *argv[]) {
         std::cout << "#1 : LOAD IMAGE INTO BUFFER done\n";
 
         /* DETECT & CLASSIFY OBJECTS */
-
         float confThreshold = 0.2;
         float nmsThreshold = 0.4;
         detectObjects(
@@ -158,8 +166,11 @@ int main(int argc, const char *argv[]) {
         loadLidarFromFile(lidarPoints, lidarFullFilename);
 
         // remove Lidar points based on distance properties
-        float minZ = -1.5, maxZ = -0.9, minX = 2.0, maxX = 20.0, maxY = 2.0,
-              minR = 0.1; // focus on ego lane
+        //// focus on ego lane
+        float minZ = -1.5, maxZ = -0.9;
+        float minX = 2.0, maxX = 20.0;
+        float maxY = 2.0;
+        float minR = 0.1;
         cropLidarPoints(lidarPoints, minX, maxX, maxY, minZ, maxZ, minR);
 
         (dataBuffer.end() - 1)->lidarPoints = lidarPoints;
@@ -185,15 +196,12 @@ int main(int argc, const char *argv[]) {
             show3DObjects(
                 (dataBuffer.end() - 1)->boundingBoxes,
                 cv::Size(4.0, 20.0),
-                cv::Size(2000, 2000),
+                cv::Size(1000, 1000),
                 true);
         }
         bVis = false;
 
         std::cout << "#4 : CLUSTER LIDAR POINT CLOUD done\n";
-
-        // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-        continue; // skips directly to the next image without processing what comes beneath
 
         /* DETECT IMAGE KEYPOINTS */
 
@@ -203,22 +211,18 @@ int main(int argc, const char *argv[]) {
 
         // extract 2D keypoints from current image
         std::vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        std::string detectorType = "SHITOMASI";
+        std::string detectorType = "FAST";
 
-        if (detectorType.compare("SHITOMASI") == 0) {
-            detKeypointsShiTomasi(keypoints, imgGray, false);
-        } else {
-            //...
-        }
+        detKeypoints(keypoints, imgGray, detectorType, bVis);
 
         // optional : limit number of keypoints (helpful for debugging and learning)
         bool bLimitKpts = false;
         if (bLimitKpts) {
             int maxKeypoints = 50;
 
-            if (detectorType.compare("SHITOMASI") ==
-                0) { // there is no response info, so keep the first 50 as they are sorted in
-                     // descending quality order
+            // there is no response info,
+            // so keep the first 50 as they are sorted in descending quality order
+            if (detectorType.compare("SHITOMASI") == 0) {
                 keypoints.erase(keypoints.begin() + maxKeypoints, keypoints.end());
             }
             cv::KeyPointsFilter::retainBest(keypoints, maxKeypoints);
@@ -233,7 +237,7 @@ int main(int argc, const char *argv[]) {
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        std::string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+        std::string descriptorType = "BRIEF"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
         descKeypoints(
             (dataBuffer.end() - 1)->keypoints,
             (dataBuffer.end() - 1)->cameraImg,
@@ -249,13 +253,10 @@ int main(int argc, const char *argv[]) {
         {
             /* MATCH KEYPOINT DESCRIPTORS */
             std::vector<cv::DMatch> matches;
-            std::string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
-            std::string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
-            std::string selectorType = "SEL_NN";       // SEL_NN, SEL_KNN
+            std::string matcherType = "MAT_BF";   // MAT_BF, MAT_FLANN
+            std::string selectorType = "SEL_KNN"; // SEL_NN, SEL_KNN
 
             matchDescriptors(
-                (dataBuffer.end() - 2)->keypoints,
-                (dataBuffer.end() - 1)->keypoints,
                 (dataBuffer.end() - 2)->descriptors,
                 (dataBuffer.end() - 1)->descriptors,
                 matches,

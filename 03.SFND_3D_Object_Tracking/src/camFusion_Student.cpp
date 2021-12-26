@@ -96,7 +96,7 @@ void show3DObjects(
 
             // top-view coordinates
             int y = (-xw * imageSize.height / worldSize.height) + imageSize.height;
-            int x = (-yw * imageSize.width / worldSize.width) + imageSize.width / 2;
+            int x = (-yw * imageSize.width / worldSize.width) + imageSize.width / 2.0;
 
             // find enclosing rectangle
             top = top < y ? top : y;
