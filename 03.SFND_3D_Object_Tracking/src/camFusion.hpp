@@ -33,16 +33,13 @@ void show3DObjects(
     cv::Size imageSize,
     bool bWait = true);
 
-void computeTTCCamera(
+double computeTTCCamera(
     std::vector<cv::KeyPoint> &kptsPrev,
     std::vector<cv::KeyPoint> &kptsCurr,
     std::vector<cv::DMatch> kptMatches,
-    double frameRate,
-    double &TTC,
-    cv::Mat *visImg = nullptr);
+    double frameRate);
 
-void computeTTCLidar(
+double computeTTCLidar(
     std::vector<LidarPoint> &lidarPointsPrev,
     std::vector<LidarPoint> &lidarPointsCurr,
-    double frameRate,
-    double &TTC);
+    double frameRate);

@@ -16,7 +16,6 @@ void detectObjects(
     std::vector<BoundingBox> &bBoxes,
     float confThreshold,
     float nmsThreshold,
-    std::string basePath,
     std::string classesFile,
     std::string modelConfiguration,
     std::string modelWeights,
