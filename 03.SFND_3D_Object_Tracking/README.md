@@ -50,10 +50,19 @@ Instead of using the mean of distRatios, I use the median of them, because media
 #### FP.5 Performance Evaluation 1: LidarTTCs.csv
 
 "LidarTTCs.csv" shows the result.
-Overall, it looks resonable.
-Noise filtering on FP.2 seems to be effective.
-TTCs at image3 and image8 are little high value. 
-I think it is because we only observe too narrow time interval (0.1sec), 
+Although I tried to filter out noises, there are some fluctuations of TTC at image3 and image8.
+
+I calculated the TTC following the constant velocity model.
+
+`TTC = minXCurr * dT / (minXPrev-minXCurr)`
+
+If `minXPrev` and `minXCurr` have simillar values(=The speed of ego car and the car in front is similar.), the TTC value changes dramatically as the denominator changes.
+
+The graph below illustrates it well (Note. the graph assumes `minXCurr * dT = 1`). As `(minXPrev-minXCurr)` approaches zero, TTC changes very rapidly.
+
+<img src="images/TTC_graph.png" width="300" height="300" />
+
+So, just small noise can incur big fluctuations of TTC.
 
 #### FP.6 Performance Evaluation 2: CameraTTCs.csv
 
