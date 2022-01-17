@@ -74,11 +74,11 @@ struct Car {
         std::string setName)
         : position(setPosition),
           dimensions(setDimensions),
+          name(setName),
           color(setColor),
           velocity(setVelocity),
           angle(setAngle),
-          Lf(setLf),
-          name(setName) {
+          Lf(setLf) {
         orientation = getQuaternion(angle);
         acceleration = 0;
         steering = 0;

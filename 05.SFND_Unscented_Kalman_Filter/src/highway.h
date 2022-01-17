@@ -121,7 +121,7 @@ class Highway {
         renderHighway(egoVelocity * timestamp / 1e6, viewer);
         egoCar.render(viewer);
 
-        for (int i = 0; i < traffic.size(); i++) {
+        for (size_t i = 0; i < traffic.size(); i++) {
             traffic[i].move((double)1 / frame_per_sec, timestamp);
             if (!visualize_pcd)
                 traffic[i].render(viewer);

@@ -22,7 +22,7 @@ lmarker Tools::lidarSense(
     long long timestamp,
     bool visualize) {
     MeasurementPackage meas_package;
-    meas_package.sensor_type_ = MeasurementPackage::LASER;
+    meas_package.sensor_type_ = MeasurementPackage::SensorType::LASER;
     meas_package.raw_measurements_ = VectorXd(2);
 
     lmarker marker = lmarker(
@@ -91,7 +91,7 @@ rmarker Tools::radarSense(
     }
 
     MeasurementPackage meas_package;
-    meas_package.sensor_type_ = MeasurementPackage::RADAR;
+    meas_package.sensor_type_ = MeasurementPackage::SensorType::RADAR;
     meas_package.raw_measurements_ = VectorXd(3);
     meas_package.raw_measurements_ << marker.rho, marker.phi, marker.rho_dot;
     meas_package.timestamp_ = timestamp;
